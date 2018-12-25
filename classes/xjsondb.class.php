@@ -141,6 +141,14 @@ class Xjsondb {
             $insert_data = self::_data($table_name, $data);
             array_push($table_content, $insert_data);
             File::_save_file($table_filepath, json_encode($table_content));
+            //
+            $meta = self::get_meta('table', $table_name);
+            self::set_meta('table', $table_name, array(
+                'update_date' => NOW,
+                'id' => $meta['id'],
+                'amount' => $meta['amount'] + 1
+            ));
+            //
             return $insert_data['id'];
         } else {
             self::_log_error('insert', array($table_name, $data));
@@ -222,35 +230,80 @@ class Xjsondb {
         return $return;
     }
 
+    public static function update($table_name, $conditions, $data) {
+        self::$logs['counter']['updates'] ++;
+        array_push(self::$logs['history'], array('update', $table_name, $conditions, $data));
+        //
+        $table_filepath = self::$dir_tables . $table_name . '.json';
+        if (is_file($table_filepath)) {
+            if (is_numeric($conditions) || is_array($conditions) || is_null($conditions)) {
+                if (is_numeric($conditions)) {
+                    $conditions = array('id' => intval($conditions));
+                }
+                $table_content = File::instance($table_filepath)->get_json();
+                foreach ($table_content as &$item) {
+                    $match_all = true;
+                    if (is_array($conditions)) {
+                        foreach ($conditions as $key => $value) {
+                            if (!isset($item[$key]) || $item[$key] != $value) {
+                                $match_all = false;
+                                break;
+                            }
+                        }
+                    }
+                    if ($match_all) {
+                        foreach (self::_data($table_name, $data, false) as $data_key => $data_value) {
+                            $item[$data_key] = $data_value;
+                        }
+                    }
+                }
+            }
+            File::_save_file($table_filepath, json_encode($table_content));
+            //
+            $meta = self::get_meta('table', $table_name);
+            self::set_meta('table', $table_name, array(
+                'update_date' => NOW,
+            ));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     //
 
-    public static function _data($table_name, $data) {
+    public static function _data($table_name, $data, $insert = true) {
         $table_config = (isset(self::$config_tables[$table_name]) ? self::$config_tables[$table_name] : array());
         //
-        foreach (array('id', 'insert_date', 'update_date', 'delete_date') as $forbidden_key) {
+        $forbidden = array('id');
+        if ($insert) {
+            $forbidden = array_merge($forbidden, array('insert_date', 'update_date', 'delete_date'));
+        }
+        foreach ($forbidden as $forbidden_key) {
             if (isset($data[$forbidden_key])) {
                 unset($data[$forbidden_key]);
             }
         }
         //
-        $data['insert_date'] = NOW;
-        $data['update_date'] = null;
-        $data['delete_date'] = null;
+        if ($insert) {
+            $data['insert_date'] = NOW;
+            $data['update_date'] = null;
+            $data['delete_date'] = null;
+        } else {
+            $data['update_date'] = NOW;
+        }
         //
         $meta = self::get_meta('table', $table_name);
-        $data['id'] = $meta['id'] + 1;
-        self::set_meta('table', $table_name, array(
-            'update_date' => NOW,
-            'id' => $data['id'],
-            'amount' => $meta['amount'] + 1
-        ));
         //
-        foreach ($table_config as $fieldname => $default) {
-            if (!isset($data[$fieldname])) {
-                if (is_callable($default)) {
-                    $data[$fieldname] = call_user_func($default, $data);
-                } else {
-                    $data[$fieldname] = $default;
+        if ($insert) {
+            $data['id'] = $meta['id'] + 1;
+            foreach ($table_config as $fieldname => $default) {
+                if (!isset($data[$fieldname])) {
+                    if (is_callable($default)) {
+                        $data[$fieldname] = call_user_func($default, $data);
+                    } else {
+                        $data[$fieldname] = $default;
+                    }
                 }
             }
         }
