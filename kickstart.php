@@ -11,3 +11,4 @@ foreach (array('classes/xjsondb.class.php') as $plugin_file_path) {
 }
 
 
+Xjsondb::startup();
