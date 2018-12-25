@@ -16,7 +16,18 @@ class Xjsondb {
     public static $config_tables = array();
     public static $config_connections = array();
     //
-    public static $CACHE = array('meta' => array());
+    public static $use_cache_variable = true;
+    //
+    public static $logs = array(
+        'counter' => array(
+            'inserts' => 0,
+            'selects' => 0,
+            'updates' => 0,
+        ),
+        'history' => array()
+    );
+    //
+    public static $CACHE = array('meta' => array(), 'selects' => array());
 
     public static function startup() {
         //Ensure JSON-DB-Directory
@@ -121,6 +132,9 @@ class Xjsondb {
     //
 
     public static function insert($table_name, $data) {
+        self::$logs['counter']['inserts'] ++;
+        array_push(self::$logs['history'], array('insert', $table_name, $data));
+        //
         $table_filepath = self::$dir_tables . $table_name . '.json';
         if (is_file($table_filepath)) {
             $table_content = File::instance($table_filepath)->get_json();
@@ -135,6 +149,9 @@ class Xjsondb {
     }
 
     public static function select($table_name, $conditions = null, $config = null, $with_connections = true) {
+        self::$logs['counter']['selects'] ++;
+        array_push(self::$logs['history'], array('select', $table_name, $conditions, $config, $with_connections));
+        //
         $table_filepath = self::$dir_tables . $table_name . '.json';
         $return = null;
         //
@@ -142,7 +159,12 @@ class Xjsondb {
             $config = array('limit' => null, 'sortby' => 'id');
         }
         //
+        $cache_key = self::$use_cache_variable ? md5(json_encode(array($table_name, $conditions, $config, $with_connections))) : null;
         if (is_file($table_filepath)) {
+            if ($cache_key && isset(self::$CACHE['selects'][$cache_key]) && is_array(self::$CACHE['selects'][$cache_key])) {
+                return self::$CACHE['selects'][$cache_key];
+            }
+            //
             if (is_numeric($conditions) || is_array($conditions) || is_null($conditions)) {
                 if (is_numeric($conditions)) {
                     $conditions = array('id' => intval($conditions));
@@ -189,10 +211,13 @@ class Xjsondb {
                     $return = $table_content;
                 }
             } else {
-                self::_log_error('select', array($table_name, $data, 'step2'));
+                self::_log_error('select', array($table_name, isset($data) ? $data : null, 'step2'));
             }
         } else {
-            self::_log_error('select', array($table_name, $data));
+            self::_log_error('select', array($table_name, isset($data) ? $data : null));
+        }
+        if ($cache_key) {
+            self::$CACHE['selects'][$cache_key] = $return;
         }
         return $return;
     }
