@@ -158,7 +158,7 @@ class Xjsondb {
                         if ($match_all) {
                             if ($with_connections && isset(self::$config_connections[$table_name]) && !empty(self::$config_connections[$table_name])) {
                                 foreach (self::$config_connections[$table_name] as $connection_name => $connection_data) {
-                                    $connection_limit = 1000;
+                                    $connection_limit = 5000;
                                     $counter = 0;
                                     foreach ($connection_data as $_key => $_val) {
                                         switch ($counter) {
