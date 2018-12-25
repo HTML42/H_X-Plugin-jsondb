@@ -124,11 +124,14 @@ class Xjsondb {
         $table_filepath = self::$dir_tables . $table_name . '.json';
         if (is_file($table_filepath)) {
             $table_content = File::instance($table_filepath)->get_json();
-            array_push($table_content, self::_data($table_name, $data));
+            $insert_data = self::_data($table_name, $data);
+            array_push($table_content, $insert_data);
             File::_save_file($table_filepath, json_encode($table_content));
+            return $insert_data['id'];
         } else {
             self::_log_error('insert', array($table_name, $data));
         }
+        return null;
     }
 
     public static function select($table_name, $conditions = null, $config = null, $with_connections = true) {
