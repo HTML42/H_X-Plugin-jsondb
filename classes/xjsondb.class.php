@@ -178,45 +178,43 @@ class Xjsondb {
                     $conditions = array('id' => intval($conditions));
                 }
                 $table_content = File::instance($table_filepath)->get_json();
-                if (is_array($conditions)) {
-                    $return = array();
-                    foreach ($table_content as $item) {
-                        $match_all = true;
+                $return = array();
+                foreach ($table_content as $item) {
+                    $match_all = true;
+                    if (is_array($conditions)) {
                         foreach ($conditions as $key => $value) {
                             if (!isset($item[$key]) || $item[$key] != $value) {
                                 $match_all = false;
                                 break;
                             }
                         }
-                        if ($match_all) {
-                            if ($with_connections && isset(self::$config_connections[$table_name]) && !empty(self::$config_connections[$table_name])) {
-                                foreach (self::$config_connections[$table_name] as $connection_name => $connection_data) {
-                                    $connection_limit = 5000;
-                                    $counter = 0;
-                                    foreach ($connection_data as $_key => $_val) {
-                                        switch ($counter) {
-                                            case 0:
-                                                $connection_start = $_key;
-                                                $connection_end = $_val;
-                                                break;
-                                            case 1:
-                                                $connection_limit = $_key;
-                                                break;
-                                        }
-                                        //
-                                        $counter++;
-                                    }
-                                    $item[$connection_name] = self::select($connection_end[0], array($connection_end[1] => $item[$connection_start]), null, false);
-                                }
-                            }
-                            array_push($return, $item);
-                        }
-                        if (is_numeric($config['limit']) && count($return) >= $config['limit']) {
-                            break;
-                        }
                     }
-                } else {
-                    $return = $table_content;
+                    if ($match_all) {
+                        if ($with_connections && isset(self::$config_connections[$table_name]) && !empty(self::$config_connections[$table_name])) {
+                            foreach (self::$config_connections[$table_name] as $connection_name => $connection_data) {
+                                $connection_limit = 5000;
+                                $counter = 0;
+                                foreach ($connection_data as $_key => $_val) {
+                                    switch ($counter) {
+                                        case 0:
+                                            $connection_start = $_key;
+                                            $connection_end = $_val;
+                                            break;
+                                        case 1:
+                                            $connection_limit = $_key;
+                                            break;
+                                    }
+                                    //
+                                    $counter++;
+                                }
+                                $item[$connection_name] = self::select($connection_end[0], array($connection_end[1] => $item[$connection_start]), null, false);
+                            }
+                        }
+                        array_push($return, $item);
+                    }
+                    if (is_numeric($config['limit']) && count($return) >= $config['limit']) {
+                        break;
+                    }
                 }
             } else {
                 self::_log_error('select', array($table_name, isset($data) ? $data : null, 'step2'));
