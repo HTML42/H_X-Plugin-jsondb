@@ -165,6 +165,8 @@ class Xjsondb {
         //
         if (is_null($config)) {
             $config = array('limit' => null, 'sortby' => 'id');
+        } else {
+            $config = array('limit' => null, 'sortby' => 'id') + $config;
         }
         //
         $cache_key = self::$use_cache_variable ? md5(json_encode(array($table_name, $conditions, $config, $with_connections))) : null;
@@ -226,6 +228,11 @@ class Xjsondb {
             self::$CACHE['selects'][$cache_key] = $return;
         }
         return $return;
+    }
+
+    public static function select_first($table_name, $conditions = null, $with_connections = true) {
+        $select = self::select($table_name, $conditions, array('limit' => 1), $with_connections);
+        return (is_array($select) &&isset($select[0]) ? $select[0] : array());
     }
 
     public static function update($table_name, $conditions, $data) {
