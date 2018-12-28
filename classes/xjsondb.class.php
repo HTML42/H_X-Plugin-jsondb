@@ -293,7 +293,11 @@ class Xjsondb {
                 if (count($matches) == count($table_items)) {
                     $quick = false;
                 } else {
-                    $return = json_decode('[{' . implode('},{', $matches) . '}]', true);
+                    if(empty($matches)) {
+                        $return = array();
+                    } else {
+                        $return = json_decode('[{' . implode('},{', $matches) . '}]', true);
+                    }
                 }
             }
             //
