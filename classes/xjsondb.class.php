@@ -23,6 +23,7 @@ class Xjsondb {
             'inserts' => 0,
             'selects' => 0,
             'updates' => 0,
+            'requests' => 0
         ),
         'history' => array()
     );
@@ -141,6 +142,7 @@ class Xjsondb {
             $insert_data = self::_data($table_name, $data);
             array_push($table_content, $insert_data);
             File::_save_file($table_filepath, json_encode($table_content));
+            self::$logs['counter']['requests'] ++;
             //
             $meta = self::get_meta('table', $table_name);
             self::set_meta('table', $table_name, array(
@@ -180,6 +182,7 @@ class Xjsondb {
                     $conditions = array('id' => intval($conditions));
                 }
                 $table_content = File::instance($table_filepath)->get_json();
+                self::$logs['counter']['requests'] ++;
                 $return = array();
                 foreach ($table_content as $item) {
                     $match_all = true;
@@ -232,7 +235,7 @@ class Xjsondb {
 
     public static function select_first($table_name, $conditions = null, $with_connections = true) {
         $select = self::select($table_name, $conditions, array('limit' => 1), $with_connections);
-        return (is_array($select) &&isset($select[0]) ? $select[0] : array());
+        return (is_array($select) && isset($select[0]) ? $select[0] : array());
     }
 
     public static function update($table_name, $conditions, $data) {
@@ -264,6 +267,7 @@ class Xjsondb {
                 }
             }
             File::_save_file($table_filepath, json_encode($table_content));
+            self::$logs['counter']['requests'] ++;
             //
             $meta = self::get_meta('table', $table_name);
             self::set_meta('table', $table_name, array(
@@ -272,6 +276,40 @@ class Xjsondb {
             return true;
         } else {
             return false;
+        }
+    }
+
+    public static function search($table_name, $term, $fields = null, $exact_match = false, $quick = true) {
+        $table_filepath = self::$dir_tables . $table_name . '.json';
+        $cache_key = self::$use_cache_variable ? md5(json_encode(array($table_name, $term, $fields, $exact_match, $quick))) : null;
+        if (is_file($table_filepath)) {
+            $return = array();
+            $table_content = file_get_contents($table_filepath);
+            if ($quick) {
+                $table_items = explode('},{', substr($table_content, 2, strlen($table_content) - 4));
+                $matches = array_filter($table_items, function($item) use ($term, $fields, $exact_match) {
+                    return __compare($item, $term, $exact_match);
+                });
+                if (count($matches) == count($table_items)) {
+                    $quick = false;
+                } else {
+                    $return = json_decode('[{' . implode('},{', $matches) . '}]', true);
+                }
+            }
+            //
+            if (!$quick) {
+                $return = array_filter(json_decode($table_content, true), function($item) use ($term, $fields, $exact_match) {
+                    if (!is_array($fields)) {
+                        return __compare_recursive($item, $term, $exact_match);
+                    } else {
+                        return false;
+                    }
+                });
+            }
+            //
+            return $return;
+        } else {
+            return null;
         }
     }
 
@@ -316,4 +354,27 @@ class Xjsondb {
         return $data;
     }
 
+}
+
+function __compare($string, $term, $exact_match = false) {
+    if ($exact_match) {
+        return strstr($string, $term);
+    } else {
+        return strstr(strtolower($string), strtolower($term));
+    }
+}
+
+function __compare_recursive($item, $term, $exact_match = false) {
+    if (is_string($item)) {
+        return __compare($item, $term, $exact_match);
+    } else if (is_array($item)) {
+        $match = false;
+        foreach ($item as $item_sub) {
+            if (__compare_recursive($item_sub, $term, $exact_match)) {
+                $match = true;
+                break;
+            }
+        }
+        return $match;
+    }
 }
