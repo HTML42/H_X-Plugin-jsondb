@@ -147,7 +147,7 @@ class Xjsondb {
             $meta = self::get_meta('table', $table_name);
             self::set_meta('table', $table_name, array(
                 'update_date' => NOW,
-                'id' => $meta['id'],
+                'id' => $insert_data['id'],
                 'amount' => $meta['amount'] + 1
             ));
             //
