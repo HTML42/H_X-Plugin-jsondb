@@ -188,7 +188,12 @@ class Xjsondb {
                     $match_all = true;
                     if (is_array($conditions)) {
                         foreach ($conditions as $key => $value) {
-                            if (!isset($item[$key]) || $item[$key] != $value) {
+                            if (is_callable($value)) {
+                                if (!$value($item)) {
+                                    $match_all = false;
+                                    break;
+                                }
+                            } else if (!isset($item[$key]) || $item[$key] != $value) {
                                 $match_all = false;
                                 break;
                             }
@@ -293,7 +298,7 @@ class Xjsondb {
                 if (count($matches) == count($table_items)) {
                     $quick = false;
                 } else {
-                    if(empty($matches)) {
+                    if (empty($matches)) {
                         $return = array();
                     } else {
                         $return = json_decode('[{' . implode('},{', $matches) . '}]', true);
