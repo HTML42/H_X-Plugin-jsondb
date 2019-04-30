@@ -188,7 +188,7 @@ class Xjsondb {
                     $match_all = true;
                     if (is_array($conditions)) {
                         foreach ($conditions as $key => $value) {
-                            if (!isset($item[$key]) || $item[$key] != $value) {
+                            if ((!isset($item[$key]) && !is_null($item[$key])) || $item[$key] != $value) {
                                 $match_all = false;
                                 break;
                             }
